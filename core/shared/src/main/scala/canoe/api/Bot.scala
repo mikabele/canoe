@@ -2,7 +2,7 @@ package canoe.api
 
 import canoe.api.sources.{Hook, Polling}
 import canoe.models.messages.TelegramMessage
-import canoe.models.{InputFile, Update}
+import canoe.models.{InputFile, Messageable, Update}
 import cats.syntax.all._
 import fs2.{Pipe, Stream}
 import cats.effect.{Async, Concurrent, Deferred, Ref, Resource, Temporal}
@@ -53,21 +53,26 @@ class Bot[F[_]: Concurrent] private[api] (val updates: Stream[F, Update]) {
     def runScenarios(updates: Broadcast[F, Update]): Stream[F, Nothing] =
       updates
         .subscribe(1)
-        .through(pipes.messages)
-        .map(m => Stream.emits(scenarios).map(sc => fork(updates, m).through(sc.pipe)).parJoinUnbounded.drain)
+        .through(pipes.messageables)
+        .map(m => {
+          Stream.emits(scenarios).map(sc => fork(updates, m).through(sc.pipe)).parJoinUnbounded.drain
+        })
         .parJoinUnbounded
 
-    def fork(updates: Broadcast[F, Update], m: TelegramMessage): Stream[F, TelegramMessage] =
+    def fork(updates: Broadcast[F, Update], m: Messageable): Stream[F, Messageable] =
       updates
         .subscribe(1)
-        .through(filterMessages(m.chat.id))
+        .through(filterMessageables(m))
         .through(debounce)
         .cons1(m)
 
-    def filterMessages(id: Long): Pipe[F, Update, TelegramMessage] =
-      _.through(pipes.messages).filter(_.chat.id == id)
+    def filterMessageables(msg: Messageable): Pipe[F, Update, Messageable] =
+      _.through(pipes.messageables)
+        .filter(m => {
+          m.getMessage.flatMap(msgNO => msg.getMessage.map(_.chat.id == msgNO.chat.id)).getOrElse(false)
+        })
 
-    def debounce[F[_]: Concurrent, A]: Pipe[F, A, A] =
+    def debounce[F[_] : Concurrent, A]: Pipe[F, A, A] =
       input =>
         Stream.eval(Ref[F].of[Option[Deferred[F, A]]](None)).flatMap { ref =>
           val hook = Stream

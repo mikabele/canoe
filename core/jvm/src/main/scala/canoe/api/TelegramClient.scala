@@ -9,6 +9,7 @@ import org.http4s.blaze.client.BlazeClientBuilder
 
 import scala.concurrent.ExecutionContext
 import cats.effect.{Async, Resource, Sync}
+import fs2.Stream
 
 /** Client which is able to execute Telegram Bot API methods in effect `F`.
   */
@@ -17,6 +18,8 @@ trait TelegramClient[F[_]] {
   /** Transforms request into result using implicit method definition as a contract.
     */
   def execute[Req, Res](request: Req)(implicit M: Method[Req, Res]): F[Res]
+
+  def downloadFile(pathToFile: String): Stream[F, Byte]
 }
 
 object TelegramClient {

@@ -1,5 +1,6 @@
 package canoe.api
 
+import canoe.models.Messageable.{MyCallbackQuery, MyTelegramMessage}
 import canoe.models._
 import canoe.models.messages.TelegramMessage
 import fs2.Pipe
@@ -36,4 +37,16 @@ object pipes {
   def preCheckoutQueries[F[_]]: Pipe[F, Update, PreCheckoutQuery] =
     _.collect { case PreCheckoutQueryReceived(_, query) => query }
 
+  private def messageReceivedPF: PartialFunction[Update, Messageable] = {
+    case MessageReceived(_, message) =>
+      MyTelegramMessage(message)
+  }
+
+  private def callbackButtonSelectedPF: PartialFunction[Update, Messageable] = {
+    case CallbackButtonSelected(_, query) =>
+      MyCallbackQuery(query)
+  }
+
+  def messageables[F[_]]: Pipe[F, Update, Messageable] =
+    _.collect((messageReceivedPF :: callbackButtonSelectedPF :: Nil).reduce(_ orElse _))
 }

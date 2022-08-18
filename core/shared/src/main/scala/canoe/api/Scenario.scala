@@ -1,14 +1,11 @@
 package canoe.api
 
 import canoe.api.matching.Episode
-import canoe.models.messages.TelegramMessage
-import cats.arrow.FunctionK
-import cats.~>
+import canoe.models.Messageable
+import cats.{MonadThrow, ~>}
 import fs2.Pipe
 
 import scala.concurrent.duration.FiniteDuration
-import cats.MonadThrow
-import cats.StackSafeMonad
 
 /** Description of an interaction between two parties,
   * where generally one is the application (bot) and the other is Telegram user.
@@ -18,13 +15,8 @@ import cats.StackSafeMonad
   *
   * `Scenario` forms a monad in `A` with `pure` and `flatMap`.
   */
-final class Scenario[F[_], +A] private (private val ep: Episode[F, TelegramMessage, A]) extends AnyVal {
-
-  /** Pipe which produces a stream with at most single value of type `A` evaluated in `F` effect
-    * as a result of the successful interaction matching this description.
-    * If an unhandled error result was encountered during the interaction, it will be raised here.
-    */
-  def pipe(implicit F: MonadThrow[F]): Pipe[F, TelegramMessage, A] =
+final class Scenario[F[_], +A] private (private val ep: Episode[F, Messageable, A]) extends AnyVal {
+  def pipe(implicit F: MonadThrow[F]): Pipe[F, Messageable, A] =
     ep.matching
 
   /** Chains this scenario with the one produced by applying `fn` to the result of this scenario.
@@ -45,7 +37,7 @@ final class Scenario[F[_], +A] private (private val ep: Episode[F, TelegramMessa
   def handleErrorWith[A2 >: A](fn: Throwable => Scenario[F, A2]): Scenario[F, A2] =
     new Scenario[F, A2](Episode.Protected(ep, fn(_).ep))
 
-  /** @return Scenario which wraps successful result values in `Right` and raised errors in `Left`.
+  /** @return models.MyScenario which wraps successful result values in `Right` and raised errors in `Left`.
     */
   def attempt: Scenario[F, Either[Throwable, A]] =
     map(Right(_): Either[Throwable, A]).handleErrorWith(e => Scenario.pure(Left(e)))
@@ -56,35 +48,35 @@ final class Scenario[F[_], +A] private (private val ep: Episode[F, TelegramMessa
     * This can be useful, when you expect some input from the user (e.g. data in specific format)
     * and want to retry if the input was not correct.
     */
-  def tolerateN(n: Int)(fn: TelegramMessage => F[Unit]): Scenario[F, A] =
+  def tolerateN(n: Int)(fn: Messageable => F[Unit]): Scenario[F, A] =
     new Scenario[F, A](Episode.Tolerate(ep, Some(n), fn))
 
   /** Alias for tolerateN(1) */
-  def tolerate(fn: TelegramMessage => F[Unit]): Scenario[F, A] = tolerateN(1)(fn)
+  def tolerate(fn: Messageable => F[Unit]): Scenario[F, A] = tolerateN(1)(fn)
 
   /** Same as tolerateN, but retries until the scenario is fully matched.
     *
     * Often used in combination with stopOn/stopWith to give users a way to 'escape' the scenario.
     */
-  def tolerateAll(fn: TelegramMessage => F[Unit]): Scenario[F, A] =
+  def tolerateAll(fn: Messageable => F[Unit]): Scenario[F, A] =
     new Scenario[F, A](Episode.Tolerate(ep, None, fn))
 
   /** Stops this scenario on first input message matching the predicate.
     */
-  def stopOn(p: TelegramMessage => Boolean): Scenario[F, A] =
+  def stopOn(p: Messageable => Boolean): Scenario[F, A] =
     new Scenario[F, A](Episode.Cancellable(ep, p, None))
 
   /** Stops this scenario on first input message matching the predicate
     * and evaluates cancellation function with this message.
     */
-  def stopWith(p: TelegramMessage => Boolean)(cancellation: TelegramMessage => F[Unit]): Scenario[F, A] =
+  def stopWith(p: Messageable => Boolean)(cancellation: Messageable => F[Unit]): Scenario[F, A] =
     new Scenario[F, A](Episode.Cancellable(ep, p, Some(cancellation)))
 
   /** Limit the amount of time that this scenario can run for.
     * Useful in case you want to no longer wait for user input after a certain period of time
     * and prefer to just drop the current interaction.
     *
-    * Scenario that has exceeded specified duration is going to be interrupted and finish with ExitCase.Canceled.
+    * models.MyScenario that has exceeded specified duration is going to be interrupted and finish with ExitCase.Canceled.
     */
   def within(duration: FiniteDuration): Scenario[F, A] =
     new Scenario[F, A](Episode.TimeLimited(ep, duration))
@@ -95,8 +87,7 @@ final class Scenario[F[_], +A] private (private val ep: Episode[F, TelegramMessa
     * if `this` is nested with a lot of `flatMap` operations.
     */
   def mapK[G[_]](f: F ~> G): Scenario[G, A] =
-    new Scenario[G, A](ep.mapK(f))
-}
+    new Scenario[G, A](ep.mapK(f))}
 
 object Scenario extends ScenarioInstances {
 
@@ -105,10 +96,10 @@ object Scenario extends ScenarioInstances {
     * Any input message from `pf` domain will be matched
     * and transformed into a value of type `A`.
     */
-  def expect[F[_], A](pf: PartialFunction[TelegramMessage, A]): Scenario[F, A] =
+  def expect[F[_], A](pf: PartialFunction[Messageable, A]): Scenario[F, A] =
     new Scenario[F, A](Episode.Next(pf.isDefinedAt).map(pf))
 
-  /** Suspends an effectful value of type `A` into Scenario context.
+  /** Suspends an effectful value of type `A` into models.MyScenario context.
     *
     * Generally used for describing action that should be executed by the bot
     * (e.g. sending messages, making calls to external APIs, etc.)
@@ -116,7 +107,7 @@ object Scenario extends ScenarioInstances {
   def eval[F[_], A](fa: F[A]): Scenario[F, A] =
     new Scenario[F, A](Episode.Eval(fa))
 
-  /** Lifts pure value to Scenario context.
+  /** Lifts pure value to models.MyScenario context.
     *
     * Uses partially applied type parameter technique.
     */
@@ -129,19 +120,28 @@ object Scenario extends ScenarioInstances {
     def apply[A](a: A): Scenario[F, A] = new Scenario[F, A](Episode.Pure(a))
   }
 
-  /** Unit value lifted to Scenario context with effect `F`.
+  /** Unit value lifted to models.MyScenario context with effect `F`.
     */
   def done[F[_]]: Scenario[F, Unit] = pure(())
 
-  /** Lifts error value to the Scenario context.
+  /** Lifts error value to the models.MyScenario context.
     *
     * Error can be safely brought back to the return value domain using `attempt` method.
     * It also can be handled using various methods from `MonadError`
     * such as `handleErrorWith`, `recover` etc.
     *
-    * @return Scenario which fails with `e`
+    * @return models.MyScenario which fails with `e`
     */
   def raiseError[F[_]](e: Throwable): Scenario[F, Nothing] =
     new Scenario[F, Nothing](Episode.RaiseError(e))
 
+  def fromEitherF[F[_], A, B <: Throwable](f: F[Either[B, A]]): Scenario[F, A] = {
+    for {
+      temp <- Scenario.eval(f)
+      res <- temp.fold(
+        error => Scenario.raiseError(error): Scenario[F, A],
+        value => Scenario.pure(value): Scenario[F, A]
+      )
+    } yield res
+  }
 }

@@ -87,4 +87,10 @@ private[api] class Http4sTelegramClient[F[_]: Concurrent: Logger](token: String,
         ) *>
           FailedMethod(m, input, failed).raiseError[F, A]
     }
+
+  override def downloadFile(pathToFile: String): Stream[F, Byte] = {
+    val uri = Uri.unsafeFromString("https://api.telegram.org/") / s"file/bot$token/" / pathToFile
+    val req = Request[F](Method.GET, uri)
+    client.stream(req).flatMap(_.body) //.through(_.map(_.toChar))
+  }
 }
