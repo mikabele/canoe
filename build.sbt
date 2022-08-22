@@ -1,8 +1,8 @@
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
+
 
 lazy val canoe = project
   .in(file("."))
-  .aggregate(coreJvm, coreJs, examples)
+  .aggregate(coreJvm, examples)
   .disablePlugins(MimaPlugin)
   .settings(
     projectSettings,
@@ -10,8 +10,7 @@ lazy val canoe = project
     publish / skip := true
   )
 
-lazy val core = crossProject(JVMPlatform, JSPlatform)
-  .in(file("core"))
+lazy val core = Project(id="core",file("core"))
   .settings(
     name := "canoe",
     projectSettings,
@@ -19,7 +18,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
     crossDependencies,
     tests
   )
-  .jvmSettings(
+  .settings(
     libraryDependencies ++= Seq(
       "org.http4s"    %% "http4s-dsl"          % http4sVersion,
       "org.http4s"    %% "http4s-blaze-client" % http4sVersion,
@@ -28,15 +27,9 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
       "org.typelevel" %% "log4cats-slf4j"      % log4catsVersion
     )
   )
-  .jsSettings(
-    libraryDependencies ++= Seq(
-      ("org.scala-js" %%% "scalajs-dom"                 % scalaJsDomVersion).cross(CrossVersion.for3Use2_13),
-      "org.scala-js"  %%% "scala-js-macrotask-executor" % scalaJsMacroTaskExecutor
-    )
-  )
 
-lazy val coreJvm = core.jvm.settings(mimaSettings)
-lazy val coreJs = core.js.disablePlugins(MimaPlugin)
+
+lazy val coreJvm = core.settings(mimaSettings)
 
 lazy val examples = project
   .dependsOn(coreJvm)
