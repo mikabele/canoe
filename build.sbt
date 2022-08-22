@@ -50,11 +50,11 @@ lazy val examples = project
 
 lazy val projectSettings = Seq(
   organization := "org.augustjune",
-  licenses ++= Seq(("MIT", url("http://opensource.org/licenses/MIT"))),
-  homepage := Some(url("https://github.com/augustjune/canoe")),
-  developers := List(
-    Developer("augustjune", "Yura Slinkin", "jurij.jurich@gmail.com", url("https://github.com/augustjune"))
-  ),
+//  licenses ++= Seq(("MIT", url("http://opensource.org/licenses/MIT"))),
+//  homepage := Some(url("https://github.com/augustjune/canoe")),
+//  developers := List(
+//    Developer("augustjune", "Yura Slinkin", "jurij.jurich@gmail.com", url("https://github.com/augustjune"))
+//  ),
   scalaVersion := scala2_13,
   crossScalaVersions := Seq(scala2_12, scala2_13, scala3)
 )
@@ -109,17 +109,17 @@ lazy val tests = {
 
 ThisBuild / scalaVersion := scala3
 ThisBuild / crossScalaVersions := Seq(scala2_13, scala3)
-ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
-ThisBuild / githubWorkflowPublishTargetBranches ++= Seq(RefPredicate.Equals(Ref.Branch("master")),
-                                                        RefPredicate.StartsWith(Ref.Tag("v"))
-)
-ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
-ThisBuild / githubWorkflowEnv ++= List(
-  "PGP_PASSPHRASE",
-  "PGP_SECRET",
-  "SONATYPE_PASSWORD",
-  "SONATYPE_USERNAME"
-).map(envKey => envKey -> s"$${{ secrets.$envKey }}").toMap
+//ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
+//ThisBuild / githubWorkflowPublishTargetBranches ++= Seq(RefPredicate.Equals(Ref.Branch("master")),
+//                                                        RefPredicate.StartsWith(Ref.Tag("v"))
+//)
+//ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
+//ThisBuild / githubWorkflowEnv ++= List(
+//  "PGP_PASSPHRASE",
+//  "PGP_SECRET",
+//  "SONATYPE_PASSWORD",
+//  "SONATYPE_USERNAME"
+//).map(envKey => envKey -> s"$${{ secrets.$envKey }}").toMap
 
 lazy val scala3 = "3.1.3"
 lazy val scala2_13 = "2.13.8"

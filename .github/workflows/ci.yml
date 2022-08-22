@@ -19,7 +19,7 @@ env:
   SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
   SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
   PGP_SECRET: ${{ secrets.PGP_SECRET }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:

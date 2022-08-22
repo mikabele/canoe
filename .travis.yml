@@ -6,8 +6,8 @@ scala:
 jdk:
   - openjdk8
 
-before_install:
-  - git fetch --tags
+#before_install:
+#  - git fetch --tags
 
 stages:
   - name: test
