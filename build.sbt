@@ -1,8 +1,8 @@
-
+import sbtcrossproject.CrossPlugin.autoImport.crossProject
 
 lazy val canoe = project
   .in(file("."))
-  .aggregate(coreJvm, examples)
+  .aggregate(coreJvm, coreJs)
   .disablePlugins(MimaPlugin)
   .settings(
     projectSettings,
@@ -10,7 +10,8 @@ lazy val canoe = project
     publish / skip := true
   )
 
-lazy val core = Project(id="core",file("core"))
+lazy val core = crossProject(JVMPlatform, JSPlatform)
+  .in(file("core"))
   .settings(
     name := "canoe",
     projectSettings,
@@ -18,7 +19,7 @@ lazy val core = Project(id="core",file("core"))
     crossDependencies,
     tests
   )
-  .settings(
+  .jvmSettings(
     libraryDependencies ++= Seq(
       "org.http4s"    %% "http4s-dsl"          % http4sVersion,
       "org.http4s"    %% "http4s-blaze-client" % http4sVersion,
@@ -27,27 +28,33 @@ lazy val core = Project(id="core",file("core"))
       "org.typelevel" %% "log4cats-slf4j"      % log4catsVersion
     )
   )
-
-
-lazy val coreJvm = core.settings(mimaSettings)
-
-lazy val examples = project
-  .dependsOn(coreJvm)
-  .disablePlugins(MimaPlugin)
-  .settings(
-    name := "canoe-examples",
-    publish / skip := true,
-    projectSettings,
-    crossScalaVersions := Seq(scala2_12, scala2_13, scala3)
+  .jsSettings(
+    libraryDependencies ++= Seq(
+      ("org.scala-js" %%% "scalajs-dom"                 % scalaJsDomVersion).cross(CrossVersion.for3Use2_13),
+      "org.scala-js"  %%% "scala-js-macrotask-executor" % scalaJsMacroTaskExecutor
+    )
   )
+
+lazy val coreJvm = core.jvm.settings(mimaSettings)
+lazy val coreJs = core.js.disablePlugins(MimaPlugin)
+
+//lazy val examples = project
+//  .dependsOn(coreJvm)
+//  .disablePlugins(MimaPlugin)
+//  .settings(
+//    name := "canoe-examples",
+//    publish / skip := true,
+//    projectSettings,
+//    crossScalaVersions := Seq(scala2_12, scala2_13, scala3)
+//  )
 
 lazy val projectSettings = Seq(
   organization := "org.augustjune",
-//  licenses ++= Seq(("MIT", url("http://opensource.org/licenses/MIT"))),
-//  homepage := Some(url("https://github.com/augustjune/canoe")),
-//  developers := List(
-//    Developer("augustjune", "Yura Slinkin", "jurij.jurich@gmail.com", url("https://github.com/augustjune"))
-//  ),
+  licenses ++= Seq(("MIT", url("http://opensource.org/licenses/MIT"))),
+  homepage := Some(url("https://github.com/augustjune/canoe")),
+  developers := List(
+    Developer("augustjune", "Yura Slinkin", "jurij.jurich@gmail.com", url("https://github.com/augustjune"))
+  ),
   scalaVersion := scala2_13,
   crossScalaVersions := Seq(scala2_12, scala2_13, scala3)
 )
@@ -102,17 +109,22 @@ lazy val tests = {
 
 ThisBuild / scalaVersion := scala3
 ThisBuild / crossScalaVersions := Seq(scala2_13, scala3)
-//ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
-//ThisBuild / githubWorkflowPublishTargetBranches ++= Seq(RefPredicate.Equals(Ref.Branch("master")),
-//                                                        RefPredicate.StartsWith(Ref.Tag("v"))
-//)
-//ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
-//ThisBuild / githubWorkflowEnv ++= List(
-//  "PGP_PASSPHRASE",
-//  "PGP_SECRET",
-//  "SONATYPE_PASSWORD",
-//  "SONATYPE_USERNAME"
-//).map(envKey => envKey -> s"$${{ secrets.$envKey }}").toMap
+ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
+ThisBuild / githubWorkflowPublishTargetBranches ++= Seq(RefPredicate.Equals(Ref.Branch("master")),
+                                                        RefPredicate.StartsWith(Ref.Tag("v"))
+)
+ThisBuild / githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release")))
+ThisBuild / githubWorkflowEnv ++= List(
+  "PGP_PASSPHRASE",
+  "PGP_SECRET",
+  "SONATYPE_PASSWORD",
+  "SONATYPE_USERNAME"
+).map(envKey => envKey -> s"$${{ secrets.$envKey }}").toMap
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
 
 lazy val scala3 = "3.1.3"
 lazy val scala2_13 = "2.13.8"
@@ -127,9 +139,11 @@ lazy val catsEffectVersion = "3.3.13"
 lazy val catsLawsVersion = "2.8.0"
 lazy val circeVersion = "0.14.1"
 lazy val http4sVersion = "0.23.11"
-lazy val log4catsVersion = "2.3.2"
+lazy val log4catsVersion = "2.4.0"
 lazy val scalatestVersion = "3.2.12"
 lazy val disciplineVersion = "2.2.0"
 lazy val scalacheckShapelessVersion = "1.2.5"
+lazy val scalaJsDomVersion = "2.1.0"
+lazy val scalaJsMacroTaskExecutor = "1.1.0"
 lazy val kindProjectorVersion = "0.13.2"
 lazy val contextAppliedVersion = "0.1.4"
